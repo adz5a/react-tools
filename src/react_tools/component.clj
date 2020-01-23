@@ -1,17 +1,25 @@
 (ns react-tools.component
   (:require [clojure.spec.alpha :as s]))
 
-(s/def ::jsx (s/or :dom-element (s/cat :element keyword?
-                                       :props (s/? (s/map-of keyword? any?))
-                                       :children (s/* ::jsx))
-                   :react-component (s/cat :element symbol?
-                                           :props (s/? (s/map-of keyword? any?))
-                                           :children (s/* ::jsx))
-                   :expression any?))
+(s/def ::jsx
+  (s/or
+    :dom-element
+    (s/and vector?
+           (s/cat :element keyword?
+                  :props (s/? (s/map-of keyword? any?))
+                  :children (s/* ::jsx)))
+    :react-component
+    (s/and vector?
+           (s/cat :element symbol?
+                  :props (s/? (s/map-of keyword? any?))
+                  :children (s/* ::jsx)))
+    :expression any?))
 
 (s/def ::component
   (s/cat 
     :name symbol?
+    :prop-binding (s/?(s/and vector?
+                             (s/cat :binding symbol?)))
     :jsx (s/spec ::jsx)))
 
 (defn render-props
@@ -32,7 +40,7 @@
 
 (defmethod render-jsx :dom-element
   [[_ element]]
-  `(react/createElement (name ~(:element element))
+  `(react/createElement ~(name (:element element))
                         ~(render-props (:props element))
                         ~@(map render-jsx (:children element))))
 
@@ -46,12 +54,13 @@
   [& spec]
   (let [component-spec (s/conform ::component spec)]
     (if (= ::s/invalid component-spec)
-      `(println (quote ~(s/explain-str ::component spec)))
+      (throw (ex-info "defcomponent spec violation" (s/explain-data ::component spec)))
       `(do (println (quote ~component-spec))
            (defn ~(:name component-spec)
              [props#]
              (println props#)
-             ~(render-jsx (:jsx component-spec)))))))
+             (let [~(or (:binding (:prop-binding component-spec)) (gensym)) (cljs-bean.core/bean props#)]
+               ~(render-jsx (:jsx component-spec))))))))
 
 (defmacro defcomponent
   [& spec]
