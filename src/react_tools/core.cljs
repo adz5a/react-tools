@@ -15,8 +15,9 @@
 
 (defcomponent App
   [props]
+  :let [hello "you"]
   [:div {:onClick (partial println "hello from react")}
-   "wesh world"
+   (str "wesh " hello)
    [Link]
    [Message {:to "world"
              :subject (:hello props)}]])

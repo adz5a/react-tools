@@ -18,8 +18,10 @@
 (s/def ::component
   (s/cat 
     :name symbol?
-    :prop-binding (s/?(s/and vector?
-                             (s/cat :binding symbol?)))
+    :prop-binding (s/? (s/and vector?
+                              (s/cat :binding symbol?)))
+    :let (s/? (s/cat :keyword (partial = :let)
+                     :bindings any?))
     :jsx (s/spec ::jsx)))
 
 (defn render-props
@@ -60,7 +62,8 @@
              [props#]
              (println props#)
              (let [~(or (:binding (:prop-binding component-spec)) (gensym)) (cljs-bean.core/bean props#)]
-               ~(render-jsx (:jsx component-spec))))))))
+               (let ~(or (:bindings (:let component-spec)) [])
+                 ~(render-jsx (:jsx component-spec)))))))))
 
 (defmacro defcomponent
   [& spec]
