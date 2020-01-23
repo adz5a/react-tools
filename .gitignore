@@ -16,3 +16,7 @@ pom.xml.asc
 node_modules
 
 public/js
+
+.shadow-cljs/
+
+tags
