@@ -30,7 +30,9 @@
     `(let [~props-sym (js/Object.)]
        ~@(map
               (fn [[prop-key prop-val]]
-                `(set! (. ~props-sym ~(symbol (str "-" (name prop-key)))) ~prop-val))
+                `(set! (. ~props-sym ~(symbol (str "-" (name prop-key)))) ~(if (= :style prop-key)
+                                                                             `(cljs-bean.core/->js ~prop-val)
+                                                                             prop-val))) 
               props)
        ~props-sym)))
 

@@ -7,7 +7,8 @@
 (def root (.getElementById js/document "root"))
 
 (defcomponent Link
-  [:a {:href "/hello"} "A link"])
+  [:a {:href "/hello"
+       :style {:color "red"}} "A link"])
 
 (defcomponent Message
   [props]
