@@ -62,7 +62,6 @@
       `(do (println (quote ~component-spec))
            (defn ~(:name component-spec)
              [props#]
-             (println props#)
              (let [~(or (:binding (:prop-binding component-spec)) (gensym)) (cljs-bean.core/bean props#)]
                (let ~(or (:bindings (:let component-spec)) [])
                  ~(render-jsx (:jsx component-spec)))))))))
