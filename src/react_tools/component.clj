@@ -15,13 +15,18 @@
                   :children (s/* ::jsx)))
     :expression any?))
 
+(s/def ::bindings
+   (s/+ (s/cat :identifier any?
+               :value any?)))
+
 (s/def ::component
   (s/cat 
     :name symbol?
     :prop-binding (s/? (s/and vector?
                               (s/cat :binding symbol?)))
-    :let (s/? (s/cat :keyword (partial = :let)
-                     :bindings any?))
+    :react-bindings
+    (s/* (s/cat :keyword #{:let :state}
+                :bindings (s/spec ::bindings)))
     :jsx (s/spec ::jsx)))
 
 (defn render-props
@@ -54,6 +59,24 @@
                         ~(render-props (:props react-component))
                         ~@(map render-jsx (:children react-component))))
 
+(defmulti render-bindings :keyword)
+
+(defmethod render-bindings :let
+  [{:keys [bindings]}]
+  (apply concat
+         (map
+           (fn [{:keys [identifier value]}]
+             [identifier value])
+           bindings)))
+
+(defmethod render-bindings :state
+  [{:keys [bindings]}]
+  (apply concat
+         (map
+           (fn [{:keys [identifier value]}]
+             `[[~identifier ~(symbol (str "set-" identifier))] (react/useState ~value)])
+           bindings)))
+
 (defn defcomponent-impl
   [& spec]
   (let [component-spec (s/conform ::component spec)]
@@ -63,7 +86,8 @@
            (defn ~(:name component-spec)
              [props#]
              (let [~(or (:binding (:prop-binding component-spec)) (gensym)) (cljs-bean.core/bean props#)]
-               (let ~(or (:bindings (:let component-spec)) [])
+               (let ~(let [bindings (vec (apply concat (map render-bindings (:react-bindings component-spec))))]
+                       bindings)
                  ~(render-jsx (:jsx component-spec)))))))))
 
 (defmacro defcomponent
