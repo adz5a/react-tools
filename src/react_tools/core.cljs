@@ -1,7 +1,8 @@
 (ns react-tools.core
   (:require [react]
             [react-dom]
-            [cljs-bean.core])
+            [cljs-bean.core]
+            [react-router-dom :refer [BrowserRouter Route Link Switch]])
   (:require-macros [react-tools.component :refer [defcomponent jsx]]))
 
 (def root (.getElementById js/document "root"))
@@ -82,9 +83,20 @@
      state)])
 
 (defcomponent App
-  [props]
-  :let [hello "you"]
-  [TicTac])
+  [BrowserRouter
+   [:div
+    [:ul
+     [:li [Link {:to "/home"} "Home"]]
+     [:li [Link {:to "/tictac"} "Tic Tac Toe"]]
+     [:li [Link {:to "/hackernews"} "Hackernews"]]]]
+   [Switch
+    [Route {:path "/home"}
+     [:div "Home"]]
+    [Route {:path "/tictac"}
+     [TicTac]]
+    [Route {:path "/hackernews"}
+     [:div "hackernews"]]]])
+    
 
 
 (react-dom/render
