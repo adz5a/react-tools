@@ -24,6 +24,7 @@
     :name symbol?
     :prop-binding (s/? (s/and vector?
                               (s/cat :binding symbol?)))
+    :devtool (s/? (s/cat :keyword #{:devtool} :enabled boolean?))
     :react-bindings
     (s/* (s/cat :keyword #{:let :state}
                 :bindings (s/spec ::bindings)))
@@ -59,6 +60,16 @@
                         ~(render-props (:props react-component))
                         ~@(map render-jsx (:children react-component))))
 
+(defn jsx-impl
+  [jsx-vector]
+  (if (vector? jsx-vector)
+    (let [jsx-spec (s/conform ::jsx jsx-vector)]
+      (render-jsx jsx-spec))))
+
+(defmacro jsx
+  [jsx-vector]
+  (jsx-impl jsx-vector))
+
 (defmulti render-bindings :keyword)
 
 (defmethod render-bindings :let
@@ -82,13 +93,20 @@
   (let [component-spec (s/conform ::component spec)]
     (if (= ::s/invalid component-spec)
       (throw (ex-info "defcomponent spec violation" (s/explain-data ::component spec)))
-      `(do (println (quote ~component-spec))
+      `(do 
            (defn ~(:name component-spec)
              [props#]
              (let [~(or (:binding (:prop-binding component-spec)) (gensym)) (cljs-bean.core/bean props#)]
                (let ~(let [bindings (vec (apply concat (map render-bindings (:react-bindings component-spec))))]
                        bindings)
-                 ~(render-jsx (:jsx component-spec)))))))))
+                 ~(let [rendered-jsx (render-jsx (:jsx component-spec))]
+                    (if (-> component-spec :devtool :enabled true?)
+                      (jsx-impl
+                        `[react/Fragment
+                          [react-tools.devtool/DevToolPortal
+                           [react-tools.devtool/DevTool {:component (quote ~component-spec)}]]
+                          ~rendered-jsx])
+                      rendered-jsx)))))))))
 
 (defmacro defcomponent
   [& spec]

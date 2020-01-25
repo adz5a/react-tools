@@ -1,6 +1,7 @@
 (ns demo.hackernews
   (:require [react]
-            [cljs-bean.core :refer [->clj]])
+            [cljs-bean.core :refer [->clj]]
+            [react-tools.devtool])
   (:require-macros [react-tools.component :refer [defcomponent jsx]]))
 
 (def top-stories "https://hacker-news.firebaseio.com/v0/topstories.json?print=pretty")
@@ -18,14 +19,14 @@
         (.then #(.json %)))))
 
 (defcomponent HackerNews
+  :devtool true
   :state [top-stories nil]
   :let [top-stories-effect (react/useEffect (fn []
                                               (-> (get-top-stories)
                                                   (.then ->clj)
                                                   (.then set-top-stories))
                                               js/undefined)
-                                            (array))
-        _ (println top-stories)]
+                                            (array))]
   :state [top-story nil]
   :let [top-story-effect (react/useEffect (fn []
                                             (when top-stories
@@ -33,8 +34,7 @@
                                                   (.then ->clj)
                                                   (.then set-top-story)))
                                             js/undefined)
-                                          (array top-stories))
-        _ (println top-story)]
+                                          (array top-stories))]
 
   [:div "hackernews"
    (if top-stories
