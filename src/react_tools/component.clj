@@ -111,9 +111,3 @@
 (defmacro defcomponent
   [& spec]
   (apply defcomponent-impl spec))
-
-(defmacro jsx
-  [jsx-vector]
-  (if (vector? jsx-vector)
-    (let [jsx-spec (s/conform ::jsx jsx-vector)]
-      (render-jsx jsx-spec))))
