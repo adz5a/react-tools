@@ -32,15 +32,16 @@
 
 (defn render-props
   [props]
-  (let [props-sym (gensym "props")]
-    `(let [~props-sym (js/Object.)]
-       ~@(map
-              (fn [[prop-key prop-val]]
-                `(set! (. ~props-sym ~(symbol (str "-" (name prop-key)))) ~(if (= :style prop-key)
-                                                                             `(cljs-bean.core/->js ~prop-val)
-                                                                             prop-val))) 
-              props)
-       ~props-sym)))
+  (let [props' `(doto (js/Object.)
+                  ~@(map
+                      (fn [[prop-key prop-val]]
+                        `(react-tools.component/object-set
+                           ~(str (name prop-key))
+                           ~(if (= :style prop-key)
+                              `(react-tools.component/->js ~prop-val)
+                              prop-val)))
+                      props))]
+    props'))
 
 (defmulti render-jsx key :default :dom-element)
 
@@ -96,7 +97,7 @@
       `(do 
            (defn ~(:name component-spec)
              [props#]
-             (let [~(or (:binding (:prop-binding component-spec)) (gensym)) (cljs-bean.core/bean props#)]
+             (let [~(or (:binding (:prop-binding component-spec)) (gensym)) (react-tools.component/bean props#)]
                (let ~(let [bindings (vec (apply concat (map render-bindings (:react-bindings component-spec))))]
                        bindings)
                  ~(let [rendered-jsx (render-jsx (:jsx component-spec))]
@@ -111,3 +112,45 @@
 (defmacro defcomponent
   [& spec]
   (apply defcomponent-impl spec))
+
+
+(comment
+  (s/conform (s/and vector? ::jsx) [:div (:to "you")])
+  (s/conform ::jsx '[:div (:to "you")])
+  (let [component (quote
+                    (App
+                      [props]
+                      [:div {:onClick (partial println "hello from react")}
+                       "wesh world"
+                       (:to props)
+                       [Link]
+                       [Mesage (:to "you")]]))]
+                       
+     (pprint (apply defcomponent-impl component))))
+
+(comment
+  (s/conform ::bindings '[a 1])
+  (s/conform ::bindings '[a 1])
+  (str :lol)
+  (pprint
+    (apply defcomponent-impl
+      '(TicTac
+         :let [board (for [x (range 3)
+                           y (range 3)]
+                       [x y])]
+         :state [yolo yola]
+
+         [:div {:style {:css "world"}}])))
+
+  (pprint
+    (s/conform  ::component
+      '(TicTac
+         :let [board (for [x (range 3)
+                           y (range 3)]
+                       [x y])]
+
+         [:div]))))
+(comment
+  (name :component-spec)
+  (repeat 3 1)
+  (range 3))
