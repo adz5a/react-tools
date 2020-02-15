@@ -150,7 +150,11 @@
                        [x y])]
 
          [:div]))))
+
+(filter #(not (#{:player1} %)) #{:player1 :player2})
+
 (comment
+  (update {} :foo conj "bar")
   (name :component-spec)
   (repeat 3 1)
   (range 3))

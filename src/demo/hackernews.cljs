@@ -1,5 +1,6 @@
 (ns demo.hackernews
   (:require [react]
+            [react-tools.component]
             [cljs-bean.core :refer [->clj]]
             [react-tools.devtool])
   (:require-macros [react-tools.component :refer [defcomponent jsx]]))
@@ -36,7 +37,7 @@
                                             js/undefined)
                                           (array top-stories))]
 
-  [:div "hackernews"
+  [:div {:style {:color "red"}} "hackernews"
    (if top-stories
      (jsx [:div (str (count top-stories) " Trending Stories")])
      (jsx [:div {} "Loading stories"]))

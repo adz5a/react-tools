@@ -1,15 +1,16 @@
 (ns demo.tictac
   (:require [react]
-            [cljs-bean.core])
+            [react-tools.component :refer [->js]])
   (:require-macros [react-tools.component :refer [defcomponent jsx]]))
 
-(defonce winning-patterns
+(def winning-patterns
   (let [diag+ (map #(vector % %) (range 3))
         diag- (map #(vector (- 2 %) %) (range 3))
         lines (map #(map (partial vector %) (range 3)) (range 3))
         columns (map #(map (fn [[x y]] [y x]) %) lines)]
-    (into #{diag- diag+}
-          (concat lines columns))))
+    (vec
+      (into #{diag- diag+}
+            (concat lines columns)))))
 
 (defn get-player-tiles
   [game player]
@@ -23,46 +24,93 @@
   (let [tiles (get-player-tiles game player)]
     (some (set tiles) winning-patterns)))
 
+(defcomponent Square
+  [props]
+  :let [{:keys [x y onSquareClicked]} props
+        col (-> x inc) 
+        row (-> y inc)
+        owner (:owner props)
+        color (:color props)] 
+  [:div {:style {:gridColumn col
+                 :gridRow row
+                 :border "solid 1px black"
+                 :margin 1
+                 :cursor "pointer"
+                 :backgroundColor color}
+         :onClick #(do
+                       (when (and (not owner)
+                                  (fn? onSquareClicked))
+                         (onSquareClicked [x y])))}])
+
+(defcomponent Grid
+  [props]
+  [:div {:style {:display "grid"
+                 :gridTemplateColumns "50px 50px 50px"
+                 :gridTemplateRows "50px 50px 50px"
+                 :height 150}}
+   (:children props)])
+
+
+(def board (for [x (range 3)
+                 y (range 3)]
+             [x y]))
+
+(defcomponent PatternSelect
+  [props]
+
+  :let [{:keys [set-game]} props]
+
+  [:form
+   {:onChange #(let [pattern (->> % .-target .-value int (nth winning-patterns))]
+                 (set-game (into {}
+                                 (map
+                                   (fn [coord]
+                                     [coord :player1])
+                                   pattern))))} 
+   (->js (map
+           (fn [pattern index]
+             (jsx [:label {:key index}
+                   [:input {:key index :type "radio" :name "pattern" :value index}]
+                   (str pattern)]))
+           winning-patterns
+           (range)))])
+
 (defcomponent TicTac
-  :let [board (for [x (range 3)
-                    y (range 3)]
-                [x y])
-        players #{:player1 :player2}]
+
+  :let [modes #{:play :winning-patterns}
+        players #{:player1 :player2}
+        colors {:player1 "lightblue"
+                :player2 "red"}]
+
   :state [game {}
           player :player1
+          mode :play
           error-message nil]
-  :let [_ (println (get-player-tiles game :player1))
-        _ (println game)]
-
   [:div
-   [:h1 (str (name player) " turn to play")]
-   (when error-message
-     (jsx [:h3 error-message]))
-   (when (is-winner game :player1)
-     (jsx [:h3 "Player 1 wins"]))
-   (when (is-winner game :player2)
-     (jsx [:h3 "Player 2 wins"]))
-   [:div {:style {:display "grid"
-                  :gridTemplateColumns "50px 50px 50px"
-                  :gridTemplateRows "50px 50px 50px"
-                  :height 150}}
-    (map (fn [[x y]]
+   [:h1 "Tic Tac"]
+   [:p (str mode)]
+   [:select {:defaultValue (name mode)
+             :onChange #(do (-> % .-target .-value keyword set-mode)
+                            (set-game {}))}
+    [:option {:value (name :play)} (name :play)]
+    [:option {:value (name :winning-patterns)} (name :winning-patterns)]]
+   (when (= :winning-patterns mode)
+     (jsx [PatternSelect {:set-game set-game}]))
+   (when (= :play mode)
+     (jsx [:p (str player)]))
+   [Grid
+    (map (fn [[x y] index]
            (let [owner (game [x y])]
-             (jsx [:div {:style {:gridColumn (str (inc x))
-                                 :gridRow (str (inc y))
-                                 :border "solid 1px black"
-                                 :margin 1
-                                 :backgroundColor (if (game [x y]) "green" "red")
-                                 :cursor "pointer"}
-                         :onClick (fn [_]
-                                    (if-not owner
-                                      (do
-                                        (set-game #(conj % [[x y] player]))
-                                        (set-player (if (= player :player1)
-                                                      :player2
-                                                      :player1))
-                                        (set-error-message nil))
-                                      (set-error-message "Tiled has already been played")))}
-                   (if owner
-                     (if (= :player1 owner) "x" "o"))])))
-         board)]])
+             (jsx [Square {:key index
+                           :x x
+                           :y y
+                           :color (or (colors owner) "")
+                           :owner owner
+                           :onSquareClicked (fn [coords]
+                                              (when (= :play mode)
+                                                (set-game #(conj % [coords player]))
+                                                (set-player (case player
+                                                              :player1 :player2
+                                                              :player2 :player1))))}])))
+         board
+         (range))]])
