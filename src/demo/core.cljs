@@ -31,25 +31,39 @@
                              ->js)
                          children)))
 
+(defcomponent NavItem
+  [props]
+  :let [{:keys [to children]} props
+        match (-> to react-router/useRouteMatch)]
+  [ui/ListItem 
+   [ui/ListIcon {:icon (if match "minus" "chevron-right")}]
+   [Link {:to to :color "gray.800"}
+    children]])
+
 (defcomponent App
   [ThemeProvider {:theme theme}
    [BrowserRouter
-    [Box {:color "rgb(26, 32, 44)"}
-     [Heading [Text "react-tools"]]
-     [Divider]
+    [ui/Box {:color "gray.800"}
+     [ui/Box
+       [:h1 {:style {:paddingLeft "1rem"}} [Link {:to "/" :color "gray.800"} "react-tools"]]
+       [Divider]]
      [ui/Flex {:direction "row"}
-      [ui/Flex
-       {:w "15rem"}
-       [ui/List
-        [ui/ListItem [Link {:to "/home"} "Home"]]
-        [ui/ListItem [Link {:to "/tictac"} "Tic Tac"]]
-        [ui/ListItem [Link {:to "/hackernews"} "HackerNews"]]
-        [ui/ListItem [Link {:to "/counter"} "Counter"]]
-        [ui/ListItem [Link {:to "/devtools"} "Dev Tools"]]
-        [ui/ListItem [Link {:to "/developpement-personnel"} "Developpement personnel"]]
-        [ui/ListItem [Link {:to "/leaflet"} "Leaflet"]]]]
       [ui/Box
-       {:flex "auto"}
+       {:w "15rem"}
+       [:h2 {:style {:paddingLeft "1rem"}} "Examples"]
+       [ui/List {:styleType "none"
+                 :background "1rem"
+                 :paddingLeft "0.5rem"
+                 :spacing 2}
+        [NavItem {:to "/tictac"} "Tic Tac"]
+        [NavItem {:to "/hackernews"} "HackerNews"]
+        [NavItem {:to "/counter"} "Counter"]
+        [NavItem {:to "/devtools"} "Dev Tools"]
+        [NavItem {:to "/developpement-personnel"} "Developpement personnel"]
+        [NavItem {:to "/leaflet"} "Leaflet"]]]
+      [ui/Box
+       {:flex "auto"
+        :marginLeft "2rem"}
        [Switch
         [Route {:path "/home" :exact true}
          [:div "Home"]]
