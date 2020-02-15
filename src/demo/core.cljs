@@ -11,39 +11,16 @@
             [react-tools.devtool :refer [DevTool]]
             [demo.dev :refer [Plan]]
             [demo.leaflet :refer [LeafletContainer]]
-            ["@chakra-ui/core" :as ui :refer [ThemeProvider theme Box Heading Divider Text]])
+            [demo.ui :refer [Link NavItem theme]]
+            ["@chakra-ui/core" :as ui :refer [ThemeProvider Box Heading Divider Text]])
   (:require-macros [react-tools.component :refer [defcomponent jsx]]))
 
-
-
 (def root (.getElementById js/document "root"))
-
-(defonce state (atom nil))
-
-(defn Link
-  [props]
-  (let [props (bean props)
-        children (:children props)]
-    (react/createElement ui/Link
-                         (-> props
-                             (dissoc :children)
-                             (assoc :as react-router/Link)
-                             ->js)
-                         children)))
-
-(defcomponent NavItem
-  [props]
-  :let [{:keys [to children]} props
-        match (-> to react-router/useRouteMatch)]
-  [ui/ListItem 
-   [ui/ListIcon {:icon (if match "minus" "chevron-right")}]
-   [Link {:to to :color "gray.800"}
-    children]])
 
 (defcomponent App
   [ThemeProvider {:theme theme}
    [BrowserRouter
-    [ui/Box {:color "gray.800"}
+    [ui/Box {:color "gray.800" :fontFamily "body"}
      [ui/Box
        [:h1 {:style {:paddingLeft "1rem"}} [Link {:to "/" :color "gray.800"} "react-tools"]]
        [Divider]]
