@@ -1,23 +1,32 @@
 (ns react-tools.component
   (:require [clojure.spec.alpha :as s]))
 
+(s/def ::bindings
+   (s/+ (s/cat :identifier any?
+               :value any?)))
+
 (s/def ::jsx
   (s/or
+    :map-expression
+    (s/and vector?
+           (s/cat :element #{:react/map}
+                  :bindings (s/spec ::bindings)
+                  :jsx ::jsx))
+
     :dom-element
     (s/and vector?
            (s/cat :element keyword?
                   :props (s/? (s/map-of keyword? any?))
                   :children (s/* ::jsx)))
+
     :react-component
     (s/and vector?
            (s/cat :element symbol?
                   :props (s/? (s/map-of keyword? any?))
                   :children (s/* ::jsx)))
+
     :expression any?))
 
-(s/def ::bindings
-   (s/+ (s/cat :identifier any?
-               :value any?)))
 
 (s/def ::component
   (s/cat 
@@ -44,6 +53,19 @@
     props'))
 
 (defmulti render-jsx key :default :dom-element)
+
+(defmethod render-jsx :map-expression
+  [[_ element]]
+  (let [{:keys [bindings jsx let-bindings]} element
+        identifiers (map :identifier bindings)
+        colls (map :value bindings)]
+    `(apply cljs.core/array
+            (map (fn ~(vec identifiers)
+                   ~(if (:let element)
+                      `(let ~(vec let-bindings)
+                         ~(render-jsx jsx))
+                      (render-jsx jsx)))
+                 ~@colls))))
 
 (defmethod render-jsx :expression
   [[_ expression]]
@@ -94,20 +116,14 @@
   (let [component-spec (s/conform ::component spec)]
     (if (= ::s/invalid component-spec)
       (throw (ex-info "defcomponent spec violation" (s/explain-data ::component spec)))
-      `(do 
-           (defn ~(:name component-spec)
-             [props#]
-             (let [~(or (:binding (:prop-binding component-spec)) (gensym)) (react-tools.component/bean props#)]
-               (let ~(let [bindings (vec (apply concat (map render-bindings (:react-bindings component-spec))))]
-                       bindings)
-                 ~(let [rendered-jsx (render-jsx (:jsx component-spec))]
-                    (if (-> component-spec :devtool :enabled true?)
-                      (jsx-impl
-                        `[react/Fragment
-                          [react-tools.devtool/DevToolPortal
-                           [react-tools.devtool/DevTool {:component (quote ~component-spec)}]]
-                          ~rendered-jsx])
-                      rendered-jsx)))))))))
+      `(do
+         (defn ~(:name component-spec)
+           [props#]
+           (let [~(or (:binding (:prop-binding component-spec)) (gensym)) (react-tools.component/bean props#)]
+             (let ~(let [bindings (vec (apply concat (map render-bindings (:react-bindings component-spec))))]
+                     bindings)
+               ~(let [rendered-jsx (render-jsx (:jsx component-spec))]
+                  rendered-jsx))))))))
 
 (defmacro defcomponent
   [& spec]
