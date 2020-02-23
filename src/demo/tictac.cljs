@@ -1,6 +1,8 @@
 (ns demo.tictac
   (:require [react]
-            [react-tools.component :refer [->js]])
+            [react-tools.component :refer [->js]]
+            ["@chakra-ui/core" :as ui]
+            [clojure.set :refer [subset?]])
   (:require-macros [react-tools.component :refer [defcomponent jsx]]))
 
 (def winning-patterns
@@ -12,21 +14,13 @@
       (into #{diag- diag+}
             (concat lines columns)))))
 
-(defn get-player-tiles
-  [game player]
-  (map key
-       (filter 
-         (fn [[tile p]]
-           (= p player))
-         game)))
-
-(defn is-winner [game player]
-  (let [tiles (get-player-tiles game player)]
-    (some (set tiles) winning-patterns)))
+(def board (for [x (range 3)
+                 y (range 3)]
+             [x y]))
 
 (defcomponent Square
   [props]
-  :let [{:keys [x y onSquareClicked]} props
+  :let [{:keys [x y onClick]} props
         col (-> x inc) 
         row (-> y inc)
         owner (:owner props)
@@ -39,8 +33,8 @@
                  :backgroundColor color}
          :onClick #(do
                        (when (and (not owner)
-                                  (fn? onSquareClicked))
-                         (onSquareClicked [x y])))}])
+                                  (fn? onClick))
+                         (onClick [x y])))}])
 
 (defcomponent Grid
   [props]
@@ -50,67 +44,99 @@
                  :height 150}}
    (:children props)])
 
-
-(def board (for [x (range 3)
-                 y (range 3)]
-             [x y]))
-
 (defcomponent PatternSelect
-  [props]
+  :state [patterns #{}]
+  ;; derive the tiles from the patterns
+  :let [tiles (reduce (partial apply conj) #{} patterns)]
+  [ui/Box
+   [ui/Box
+    [ui/Heading {:as "h4" :size "s"} "Choose winning combinations"]
+    [ui/Flex
+     [ui/Stack
+      [:react/map [pattern winning-patterns
+                   index (range)]
+       [ui/Checkbox
+        {:key index
+         :isChecked (contains? patterns pattern)
+         :onChange (fn [event]
+                     (let [checked? (-> event .-target .-checked)]
+                       (if checked?
+                         (set-patterns (fn [patterns]
+                                         (conj patterns pattern)))
+                         (set-patterns (fn [patterns]
+                                         (disj patterns pattern))))))}
+        (str pattern)]]]
+     [ui/Box {:flex "auto"
+              :paddingLeft "4rem"}
+       [Grid 
+        [:react/map [[x y] board
+                     index (range)]
+         [Square {:x x
+                  :y y
+                  :key index
+                  :color (if (contains? tiles [x y]) "green" "white")}]]]]]]])
 
-  :let [{:keys [set-game]} props]
+(defcomponent Game
+  :let [players #{:red :green}
+        winning-patterns-set (into #{}
+                                   (map set winning-patterns))
+        _ (println winning-patterns-set)]
+  :state [current-player :red
+          played-tiles {}]
+  :let [board-is-full? (= (count board) (count played-tiles))
+        green-tiles (->> played-tiles
+                         (filter #(= :green (val %)))
+                         (map key)
+                         set)
+        red-tiles (->> played-tiles
+                       (filter #(= :red (val %)))
+                       (map key)
+                       set)
+        red-won? (some (fn [pattern] (subset? pattern red-tiles))
+                       winning-patterns-set)
+        green-won? (some (fn [pattern] (subset? pattern green-tiles))
+                         winning-patterns-set)
+        game-over? (or board-is-full? red-won? green-won?)]
+  [ui/Box
+   [ui/Heading {:as "h4" :size "s"} "Play Tic Tac Toe"]
+   [ui/Text 
+    (cond
+      red-won? "Game over :red won" 
+      green-won? "Game over :red won" 
+      game-over? "Game over no one won"
+      :else (str "Turn of player " (name current-player)))] 
+   [Grid
+    [:react/map [[x y] board
+                 index (range)]
+     [Square {:x x
+              :y y
+              :key index
+              :color (let [owner (played-tiles [x y])]
+                       (if owner (name owner) "white"))
+              :onClick (fn []
+                         (let [owned? (contains? played-tiles [x y])]
+                           (when-not owned? 
+                             (set-played-tiles
+                               (fn [played-tiles]
+                                 (conj played-tiles [[x y] current-player])))
+                             (set-current-player
+                               (fn [current-player]
+                                 (case current-player
+                                   :red :green
+                                   :green :red))))))}]]]
 
-  [:form
-   {:onChange #(let [pattern (->> % .-target .-value int (nth winning-patterns))]
-                 (set-game (into {}
-                                 (map
-                                   (fn [coord]
-                                     [coord :player1])
-                                   pattern))))} 
-   (->js (map
-           (fn [pattern index]
-             (jsx [:label {:key index}
-                   [:input {:key index :type "radio" :name "pattern" :value index}]
-                   (str pattern)]))
-           winning-patterns
-           (range)))])
+   (if game-over?
+     (jsx
+       [ui/Button
+        {:variantColor "green"
+         :onClick #(do
+                    (set-current-player :red)
+                    (set-played-tiles {}))}
+        "Replay !"]))])
 
 (defcomponent TicTac
-
-  :let [modes #{:play :winning-patterns}
-        players #{:player1 :player2}
-        colors {:player1 "lightblue"
-                :player2 "red"}]
-
-  :state [game {}
-          player :player1
-          mode :play
-          error-message nil]
-  [:div
-   [:h1 "Tic Tac"]
-   [:p (str mode)]
-   [:select {:defaultValue (name mode)
-             :onChange #(do (-> % .-target .-value keyword set-mode)
-                            (set-game {}))}
-    [:option {:value (name :play)} (name :play)]
-    [:option {:value (name :winning-patterns)} (name :winning-patterns)]]
-   (when (= :winning-patterns mode)
-     (jsx [PatternSelect {:set-game set-game}]))
-   (when (= :play mode)
-     (jsx [:p (str player)]))
-   [Grid
-    (map (fn [[x y] index]
-           (let [owner (game [x y])]
-             (jsx [Square {:key index
-                           :x x
-                           :y y
-                           :color (or (colors owner) "")
-                           :owner owner
-                           :onSquareClicked (fn [coords]
-                                              (when (= :play mode)
-                                                (set-game #(conj % [coords player]))
-                                                (set-player (case player
-                                                              :player1 :player2
-                                                              :player2 :player1))))}])))
-         board
-         (range))]])
+  [ui/Box
+   [ui/Heading "Tic Tac Toe"]
+   [PatternSelect]
+   [ui/Divider]
+   [Game]])

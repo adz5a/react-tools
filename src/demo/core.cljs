@@ -12,18 +12,19 @@
             [demo.dev :refer [Plan]]
             [demo.leaflet :refer [LeafletContainer]]
             [demo.ui :refer [Link NavItem theme]]
-            ["@chakra-ui/core" :as ui :refer [ThemeProvider Box Heading Divider Text]])
+            ["@chakra-ui/core" :as ui])
   (:require-macros [react-tools.component :refer [defcomponent jsx]]))
 
 (def root (.getElementById js/document "root"))
 
 (defcomponent App
-  [ThemeProvider {:theme theme}
+  [ui/ThemeProvider {:theme theme}
+   [ui/CSSReset]
    [BrowserRouter
-    [ui/Box {:color "gray.800" :fontFamily "body"}
+    [ui/Box {:fontFamily "body"}
      [ui/Box
-       [:h1 {:style {:paddingLeft "1rem"}} [Link {:to "/" :color "gray.800"} "react-tools"]]
-       [Divider]]
+       [ui/Heading {:paddingLeft "1rem"} [Link {:to "/" :color "gray.800"} "react-tools"]]
+       [ui/Divider]]
      [ui/Flex {:direction "row"}
       [ui/Box
        {:w "15rem"}
