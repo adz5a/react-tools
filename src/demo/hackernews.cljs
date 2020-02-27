@@ -20,7 +20,6 @@
         (.then #(.json %)))))
 
 (defcomponent HackerNews
-  :devtool true
   :state [top-stories nil]
   :let [top-stories-effect (react/useEffect (fn []
                                               (-> (get-top-stories)
