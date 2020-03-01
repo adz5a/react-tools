@@ -113,11 +113,12 @@
 
 (defn defcomponent-impl
   [& spec]
-  (let [component-spec (s/conform ::component spec)]
+  (let [component-spec (s/conform ::component spec)
+        ComponentName (:name component-spec)]
     (if (= ::s/invalid component-spec)
       (throw (ex-info "defcomponent spec violation" (s/explain-data ::component spec)))
       `(do
-         (defn ~(:name component-spec)
+         (defn ~ComponentName
            [props#]
            (let [~(or (:binding (:prop-binding component-spec)) (gensym)) (react-tools.component/bean props#)]
              (let ~(let [bindings (vec (apply concat (map render-bindings (:react-bindings component-spec))))]
