@@ -35,7 +35,7 @@
                               (s/cat :binding symbol?)))
     :devtool (s/? (s/cat :keyword #{:devtool} :enabled boolean?))
     :react-bindings
-    (s/* (s/cat :keyword #{:let :state}
+    (s/* (s/cat :keyword keyword?
                 :bindings (s/spec ::bindings)))
     :jsx (s/spec ::jsx)))
 
@@ -93,7 +93,7 @@
   [jsx-vector]
   (jsx-impl jsx-vector))
 
-(defmulti render-bindings :keyword)
+(defmulti render-bindings :keyword :default :let)
 
 (defmethod render-bindings :let
   [{:keys [bindings]}]
