@@ -29,15 +29,15 @@
 
 
 (s/def ::component
-  (s/cat 
-    :name symbol?
-    :prop-binding (s/? (s/and vector?
-                              (s/cat :binding symbol?)))
-    :devtool (s/? (s/cat :keyword #{:devtool} :enabled boolean?))
-    :react-bindings
-    (s/* (s/cat :keyword keyword?
-                :bindings (s/spec ::bindings)))
-    :jsx (s/spec ::jsx)))
+       (s/cat 
+         :name symbol?
+         :prop-binding (s/? (s/and vector?
+                                   (s/cat :binding symbol?)))
+         :devtool (s/? (s/cat :keyword #{:devtool} :enabled boolean?))
+         :react-bindings
+         (s/* (s/cat :keyword keyword?
+                     :bindings (s/spec ::bindings)))
+         :jsx (s/spec ::jsx)))
 
 (defn render-props
   [props]
@@ -96,32 +96,57 @@
 (defmulti render-bindings :keyword :default :let)
 
 (defmethod render-bindings :let
-  [{:keys [bindings]}]
-  (apply concat
-         (map
-           (fn [{:keys [identifier value]}]
-             [identifier value])
-           bindings)))
+  ([{:keys [bindings]}]
+   (apply concat
+          (map
+            (fn [{:keys [identifier value]}]
+              [identifier value])
+            bindings)))
+  ([{:keys [bindings]} devtools index]
+   (apply concat
+          (map
+            (fn [{:keys [identifier value]}]
+              [identifier value])
+            bindings))))
+  
 
 (defmethod render-bindings :state
-  [{:keys [bindings]}]
-  (apply concat
-         (map
-           (fn [{:keys [identifier value]}]
-             `[[~identifier ~(symbol (str "set-" identifier))] (react/useState ~value)])
-           bindings)))
+  ([{:keys [bindings]}]
+   (apply concat
+          (map
+            (fn [{:keys [identifier value]}]
+              (let [computed-value `(react/useState ~value)
+                    computed-identifier [identifier (symbol (str "set-" identifier))]] 
+                `[~computed-identifier ~computed-value]))
+            bindings)))
+  ([[{:keys [bindings]}] devtools index]
+   (apply concat
+          (map
+            (fn [{:keys [identifier value]}]
+              (let [computed-value `(react/useState ~value)
+                    devtool-identifier (gensym (str identifier))
+                    computed-identifier [identifier (symbol (str "set-" identifier))]] 
+                `[~devtool-identifier ~computed-value
+                  ~computed-identifier ~devtool-identifier]))
+            bindings))))
 
 (defn defcomponent-impl
   [& spec]
   (let [component-spec (s/conform ::component spec)
-        ComponentName (:name component-spec)]
+        ComponentName (:name component-spec)
+        devtools (atom {:spec component-spec})]
     (if (= ::s/invalid component-spec)
       (throw (ex-info "defcomponent spec violation" (s/explain-data ::component spec)))
       `(do
          (defn ~ComponentName
            [props#]
            (let [~(or (:binding (:prop-binding component-spec)) (gensym)) (react-tools.component/bean props#)]
-             (let ~(let [bindings (vec (apply concat (map render-bindings (:react-bindings component-spec))))]
+             (let ~(let [bindings (vec (apply concat (map (fn [bindings index] 
+                                                            (if (-> component-spec :devtool true?)
+                                                              (render-bindings bindings devtools index)
+                                                              (render-bindings bindings)))
+                                                          (:react-bindings component-spec)
+                                                          (range))))]
                      bindings)
                ~(let [rendered-jsx (render-jsx (:jsx component-spec))]
                   rendered-jsx))))))))
