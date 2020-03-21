@@ -93,7 +93,10 @@
   [jsx-vector]
   (jsx-impl jsx-vector))
 
-(defmulti render-bindings :keyword :default :let)
+(defmulti render-bindings
+  (fn [react-bindings & _]
+    (react-bindings :keyword))
+  :default :let)
 
 (defmethod render-bindings :let
   ([{:keys [bindings]}]
@@ -108,7 +111,6 @@
             (fn [{:keys [identifier value]}]
               [identifier value])
             bindings))))
-  
 
 (defmethod render-bindings :state
   ([{:keys [bindings]}]
@@ -119,7 +121,7 @@
                     computed-identifier [identifier (symbol (str "set-" identifier))]] 
                 `[~computed-identifier ~computed-value]))
             bindings)))
-  ([[{:keys [bindings]}] devtools index]
+  ([{:keys [bindings]} devtools index]
    (apply concat
           (map
             (fn [{:keys [identifier value]}]
@@ -142,7 +144,7 @@
            [props#]
            (let [~(or (:binding (:prop-binding component-spec)) (gensym)) (react-tools.component/bean props#)]
              (let ~(let [bindings (vec (apply concat (map (fn [bindings index] 
-                                                            (if (-> component-spec :devtool true?)
+                                                            (if (:devtool component-spec)
                                                               (render-bindings bindings devtools index)
                                                               (render-bindings bindings)))
                                                           (:react-bindings component-spec)
@@ -154,3 +156,14 @@
 (defmacro defcomponent
   [& spec]
   (apply defcomponent-impl spec))
+
+
+(comment
+
+  (pprint *e)
+  (let [component-declaration '(Hello
+                                 :devtool true
+                                 :state [^{:name "wesh"}yolo "swag"]
+                                 [:div "world"])]
+    (pprint (s/conform ::component component-declaration))
+    (pprint (macroexpand (conj component-declaration 'defcomponent)))))
