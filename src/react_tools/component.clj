@@ -7,6 +7,12 @@
 
 (s/def ::jsx
   (s/or
+    :if-expression
+    (s/and vector?
+           (s/cat :element #{:react/if}
+                  :assertion any?
+                  :true? ::jsx
+                  :else? (s/? ::jsx)))
     :map-expression
     (s/and vector?
            (s/cat :element #{:react/map}
@@ -27,13 +33,18 @@
 
     :expression any?))
 
+(s/def :devtool/id any?)
+
+(s/def ::devtool-component
+       (s/or :boolean-flag boolean?
+             :options (s/keys :req-un [:devtool/id])))
 
 (s/def ::component
        (s/cat 
          :name symbol?
          :prop-binding (s/? (s/and vector?
                                    (s/cat :binding symbol?)))
-         :devtool (s/? (s/cat :keyword #{:devtool} :enabled boolean?))
+         :devtool (s/? (s/cat :keyword #{:devtool} :options ::devtool-component))
          :react-bindings
          (s/* (s/cat :keyword keyword?
                      :bindings (s/spec ::bindings)))
@@ -66,6 +77,14 @@
                          ~(render-jsx jsx))
                       (render-jsx jsx)))
                  ~@colls))))
+
+(defmethod render-jsx :if-expression
+  [[_ element]]
+  (let [{:keys [assertion]} element]
+    `(if ~assertion
+       ~(render-jsx (:true? element))
+       ~(when (:else? element)
+          (render-jsx (:else? element))))))
 
 (defmethod render-jsx :expression
   [[_ expression]]
@@ -105,12 +124,21 @@
             (fn [{:keys [identifier value]}]
               [identifier value])
             bindings)))
-  ([{:keys [bindings]} devtools index]
+  ([{:keys [bindings]} devtool-atom-identifier bloc-index]
    (apply concat
           (map
-            (fn [{:keys [identifier value]}]
-              [identifier value])
-            bindings))))
+            (fn [{:keys [identifier value]} index]
+              (let [devtool-identifier (gensym (str identifier))
+                    component-value value
+                    component-id-identifier (gensym)]
+                `[~devtool-identifier ~component-value
+                  ~identifier (do
+                                (let [component-id# (-> ~devtool-atom-identifier deref :rendering)]
+                                  (swap! ~devtool-atom-identifier assoc-in [:components component-id# :bindings ~bloc-index ~index] ~devtool-identifier)
+                                  (swap! ~devtool-atom-identifier assoc-in [:components component-id# :vars (quote ~identifier)] ~devtool-identifier))
+                                ~devtool-identifier)]))
+            bindings
+            (range)))))
 
 (defmethod render-bindings :state
   ([{:keys [bindings]}]
@@ -121,37 +149,58 @@
                     computed-identifier [identifier (symbol (str "set-" identifier))]] 
                 `[~computed-identifier ~computed-value]))
             bindings)))
-  ([{:keys [bindings]} devtools index]
+  ([{:keys [bindings]} devtool-atom-identifier bloc-index]
    (apply concat
           (map
-            (fn [{:keys [identifier value]}]
+            (fn [{:keys [identifier value]} binding-index]
               (let [computed-value `(react/useState ~value)
                     devtool-identifier (gensym (str identifier))
                     computed-identifier [identifier (symbol (str "set-" identifier))]] 
                 `[~devtool-identifier ~computed-value
                   ~computed-identifier ~devtool-identifier]))
-            bindings))))
+            bindings
+            (range)))))
 
 (defn defcomponent-impl
   [& spec]
   (let [component-spec (s/conform ::component spec)
         ComponentName (:name component-spec)
-        devtools (atom {:spec component-spec})]
+        devtool-enabled? (:devtool component-spec)
+        devtools (atom {:spec component-spec})
+        devtool-atom-identifier (symbol (str ComponentName "-devtool-atom"))
+        devtool-id-identifier (symbol (str "id-ref"))]
     (if (= ::s/invalid component-spec)
       (throw (ex-info "defcomponent spec violation" (s/explain-data ::component spec)))
       `(do
-         (defn ~ComponentName
+         ~(if devtool-enabled?
+            `(defonce ~devtool-atom-identifier (atom {})))
+         (defn
+           ~ComponentName
+           "React Component."
            [props#]
-           (let [~(or (:binding (:prop-binding component-spec)) (gensym)) (react-tools.component/bean props#)]
+           (let [~(or (:binding (:prop-binding component-spec)) (gensym)) (react-tools.component/bean props#)
+                 ~devtool-id-identifier ~(when devtool-enabled?
+                                           `(let [id-ref# (react/useRef ~(let [devtool (-> component-spec :devtool :options)]
+                                                                           (case (key devtool)
+                                                                             :boolean-flag :default
+                                                                             :options (-> devtool val :id))))]
+                                              (swap! ~devtool-atom-identifier assoc :rendering (.-current id-ref#))
+                                              id-ref#))]
              (let ~(let [bindings (vec (apply concat (map (fn [bindings index] 
-                                                            (if (:devtool component-spec)
-                                                              (render-bindings bindings devtools index)
+                                                            (if devtool-enabled?
+                                                              (render-bindings bindings devtool-atom-identifier index)
                                                               (render-bindings bindings)))
                                                           (:react-bindings component-spec)
                                                           (range))))]
                      bindings)
                ~(let [rendered-jsx (render-jsx (:jsx component-spec))]
-                  rendered-jsx))))))))
+                  rendered-jsx))))
+         ~(if devtool-enabled?
+            `(set! (.-devtool ~ComponentName) (react-tools.devtool/DevTool. ~ComponentName
+                                                                            (quote (defcomponent ~ComponentName ~@spec))
+                                                                            (quote ~component-spec)
+                                                                            ~devtool-atom-identifier)))
+         ~ComponentName))))
 
 (defmacro defcomponent
   [& spec]
