@@ -214,5 +214,5 @@
                                  :devtool true
                                  :state [^{:name "wesh"}yolo "swag"]
                                  [:div "world"])]
-    (pprint (s/conform ::component component-declaration))
+    (pprint (s/explain-data ::component component-declaration))
     (pprint (macroexpand (conj component-declaration 'defcomponent)))))

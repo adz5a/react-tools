@@ -17,6 +17,38 @@
 
 (def root (.getElementById js/document "root"))
 
+(defn Paragraph
+  [props]
+  (let [props' (bean props)]
+    (react/createElement ui/Text (-> props'
+                                     (dissoc :children)
+                                     (assoc :marginTop "1rem"
+                                            :marginBottom "1rem")
+                                     ->js)
+                         (:children props'))))
+
+(defcomponent Home
+  [ui/Box {:maxW "800px"}
+   [ui/Heading {:as "h1"} "Why another library ?"]
+   [Paragraph "React is an awesome UI library which provides
+              a nice abstraction and an amazing ecosystem of tools,
+              libraries and best practices for building interfaces."]
+   [Paragraph "On the other hand, Clojure / ClojureScript provide a
+              language with powerful and flexible semantics that can
+              make you really productive, using both an immutable by
+              default programming paradigm combined with a REPL based
+              developping exeperience."]
+   [Paragraph "For a while, React encouraged the use of Javascript constructors
+              to declare a React Component, however since the release of
+              the hooks API React now favours the use of JS functions to declare
+              components. Those are much both easier to write and understand and
+              make a fine compilation target. One should note howeveer that
+              the legacy syntax using constructors has not been deprecated
+              and still has its use cases. React merely extended the semantics
+              one can use to declare a Component."]
+   [ui/Text {:fontSize "2xl"} "Isn't there already well known tools / libraries that exists for working with Reat ?"]
+   [Paragraph]])
+
 (defcomponent App
   [ui/ThemeProvider {:theme theme}
    [ui/CSSReset]
@@ -39,26 +71,27 @@
         [NavItem {:to "/devtools"} "Dev Tools"]
         [NavItem {:to "/developpement-personnel"} "Developpement personnel"]
         [NavItem {:to "/leaflet"} "Leaflet"]]]
-      [ui/Box
-       {:flex "auto"
-        :marginLeft "2rem"}
-       [Switch
-        [Route {:path "/home" :exact true}
-         [:div "Home"]]
-        [Route {:path "/tictac" :exact true}
-         [TicTac]]
-        [Route {:path "/hackernews" :exact true}
-         [HackerNews]]
-        [Route {:path "/counter" :exact true}
-         [Counter]]
-        [Route {:path "/developpement-personnel" :exact true}
-         [Plan]]
-        [Route {:path "/devtools" :exact true}
-         [:section
-          [:h1 "Dev Tools"]
-          [DevTool]]]
-        [Route {:path "/leaflet" :exact true}
-         [LeafletContainer]]]]]]]])
+      [ui/Flex
+       {:justifyContent "center"
+        :flex "auto"}
+       [ui/Box
+        [Switch
+         [Route {:path "/" :exact true}
+          [Home]]
+         [Route {:path "/tictac" :exact true}
+          [TicTac]]
+         [Route {:path "/hackernews"}
+          [HackerNews]]
+         [Route {:path "/counter" :exact true}
+          [Counter]]
+         [Route {:path "/developpement-personnel" :exact true}
+          [Plan]]
+         [Route {:path "/devtools" :exact true}
+          [:section
+           [:h1 "Dev Tools"]
+           [DevTool]]]
+         [Route {:path "/leaflet" :exact true}
+          [LeafletContainer]]]]]]]]])
 
 
 (react-dom/render

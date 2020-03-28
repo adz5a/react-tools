@@ -6,7 +6,10 @@
   (:require-macros [react-tools.component :refer [defcomponent jsx]]))
 
 (defcomponent Counter
-  :let [initial-count 0]
+  :let [initial-count 0
+        example (react/useReducer (fn [state action]
+                                    state)
+                                  :default-state)]
   :state [total initial-count]
   [ui/Box
    [:h2 "Counter"]
