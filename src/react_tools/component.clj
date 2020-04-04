@@ -179,7 +179,9 @@
            "React Component."
            [props#]
            (let [~(or (:binding (:prop-binding component-spec)) (gensym)) (react-tools.component/bean props#)
-                 ~devtool-id-identifier ~(when devtool-enabled?
+                 ~devtool-id-identifier ~(when devtool-enabled? ;; when the devtools are enabled for this component,
+                                                                ;; emit a react ref which will track the identity of the
+                                                                ;; component.
                                            `(let [id-ref# (react/useRef ~(let [devtool (-> component-spec :devtool :options)]
                                                                            (case (key devtool)
                                                                              :boolean-flag :default
