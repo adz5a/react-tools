@@ -15,7 +15,7 @@
 - Shadow-cljs solves most of the problems interacting with npm [0].
 
 
-## What is a React component ?
+### What is a React component ?
 
 In JavaScript a React component can be declared using a function declaration: `function MyComponent ...`
 and its body is just vanilla Javascript. However writing a valid (and thus useful) component comes
@@ -36,6 +36,7 @@ little bit easier, without getting in your way when you want to consume the regu
 
 
 ## Examples
+
 
 ### Import the library
 
