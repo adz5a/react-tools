@@ -37,6 +37,13 @@ little bit easier, without getting in your way when you want to consume the regu
 
 ## Examples
 
+### Install using deps.edn
+
+```edn
+{:deps {adz5a/react-tools {:git/url "https://github.com/adz5a/react-tools"
+                           :tag "0.1.0"
+                           :sha "0cd64bfa28c87fc8cc9c1acc80ab101eed3f3984"}}}
+```
 
 ### Import the library
 
